@@ -4,68 +4,89 @@
 :root{--bg:#0e1319;--glass:rgba(255,255,255,.07);--line:rgba(255,255,255,.13);--tx:#e8edf3;--dim:#8e9aaa;--on:#ffb454;--r:16px}
 @media(prefers-color-scheme:light){:root{--bg:#e9eef4;--glass:rgba(255,255,255,.7);--line:rgba(0,0,0,.1);--tx:#18212b;--dim:#586577;--on:#d9820f}}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 700px at 20% -10%,#1f3a52,var(--bg));background-attachment:fixed;color:var(--tx);font:15px/1.4 system-ui,sans-serif;min-height:100vh}
-header{display:flex;gap:12px;align-items:center;padding:14px 18px;position:sticky;top:0;backdrop-filter:blur(14px);border-bottom:1px solid var(--line);z-index:2}
-h1{font-size:20px;margin:0;flex:1}h2{font-size:15px;color:var(--dim);margin:22px 18px 8px;font-weight:600}
-main{padding:0 18px 40px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin:0 0 6px}
-.card,.room{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);padding:14px;backdrop-filter:blur(10px)}
-.room{cursor:pointer;min-height:92px}.room b{font-size:17px}.room small,.card small{color:var(--dim);display:block}
-.card.on{border-color:var(--on);box-shadow:0 0 0 1px var(--on) inset}.card.on .st{color:var(--on)}
-.card .nm{font-weight:600}.st{color:var(--dim);margin-bottom:8px}
+header{text-align:center;padding:14px 18px 8px;position:sticky;top:0;backdrop-filter:blur(14px);border-bottom:1px solid var(--line);z-index:2}
+h1{font-size:22px;margin:0}#clock{color:var(--dim);font-size:13px}#edit{position:absolute;right:14px;top:14px}
+.badges,.tabs,.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}.badges,.chips{justify-content:center}
+.badge,.chip,.tabs button{--c:#8e9aaa;background:color-mix(in srgb,var(--c) 22%,transparent);border:1px solid color-mix(in srgb,var(--c) 50%,transparent);border-radius:99px;padding:6px 13px;white-space:nowrap;color:var(--tx);cursor:pointer;font:inherit}
+.badge.act,.tabs button.act{background:color-mix(in srgb,var(--c) 45%,transparent)}.tabs button:not(.act){opacity:.6}
+h2{font-size:15px;color:var(--dim);margin:20px 0 8px;font-weight:600}main{padding:0 18px 40px;max-width:1100px;margin:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.card,.room,.quick,.wx{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);padding:14px;backdrop-filter:blur(10px)}
+.room,.quick{cursor:pointer;min-height:84px;--c:#8e9aaa;background:linear-gradient(145deg,color-mix(in srgb,var(--c) 24%,transparent),color-mix(in srgb,var(--c) 5%,transparent));border-color:color-mix(in srgb,var(--c) 40%,transparent)}
+.quick{font-size:17px;display:flex;align-items:center;gap:10px;text-align:left;color:var(--tx)}.room b{font-size:17px}small{color:var(--dim);display:block}
+.card.on{border-color:var(--on);box-shadow:0 0 0 1px var(--on) inset}.card.on .st{color:var(--on)}.nm{font-weight:600}.st{color:var(--dim);margin-bottom:8px}
 button{background:var(--glass);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:7px 12px;font:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible{outline:2px solid var(--on)}input[type=range]{width:100%;accent-color:var(--on)}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tabs{display:flex;gap:8px;padding:14px 18px;overflow-x:auto}
-.tabs button.act{border-color:var(--on);color:var(--on)}.hide{opacity:.4}.empty{color:var(--dim);padding:30px 18px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.hide{opacity:.4}.empty{color:var(--dim);padding:30px 0}.wx{display:flex;gap:16px;align-items:center;font-size:18px}
+.strip{display:flex;gap:6px;overflow-x:auto;padding:12px 0 0}.strip button{white-space:nowrap}.strip .act{border-color:#2196f3;background:rgba(33,150,243,.28)}
 </style></head><body>
-<header><button id="back" hidden>Back</button><h1 id="title">Roomwise</h1><button id="edit">Edit</button></header>
+<header><button id="edit">Edit</button><h1 id="title">Roomwise</h1><div id="clock"></div><nav class="badges" id="badges"></nav></header>
 <main id="app"></main>
 <script>
-const $=s=>document.querySelector(s);let R,S={},L={hiddenRooms:[],hiddenEntities:[]},editing=false;
+const $=s=>document.querySelector(s);let R,S={},L={hiddenRooms:[],hiddenEntities:[]},editing=false,tab=null;
 const api=(p,o)=>fetch('api/'+p,o).then(r=>r.json());
 const call=(domain,service,data)=>api('call',{method:'POST',body:JSON.stringify({domain,service,data})}).then(poll);
+const FC=['#ffb74d','#2196f3','#9c27b0','#4caf50','#00bcd4','#e91e63'];
+const TC={Lights:'#ffb74d',Shades:'#9c27b0',Comfort:'#00bcd4',Media:'#2196f3',Security:'#f44336',Power:'#ffeb3b',More:'#9e9e9e'};
+const TI={Lights:'💡',Shades:'🪟',Comfort:'🌡️',Media:'📺',Security:'🛡️',Power:'⚡',More:'⋯'};
 const TABS=[['Lights','light','switch','input_boolean'],['Shades','cover'],['Comfort','climate','fan','humidifier'],['Media','media_player'],['Security','lock','alarm_control_panel','camera'],['Power'],['More']];
-function tabOf(id){const d=id.split('.')[0],s=S[id],dc=s?.attributes?.device_class;
- for(const t of TABS)if(t.slice(1).includes(d))return t[0];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nm=id=>S[id]?.attributes?.friendly_name||id,ids=d=>Object.keys(S).filter(i=>i.startsWith(d+'.'));
+function tabOf(id){const d=id.split('.')[0],dc=S[id]?.attributes?.device_class;for(const t of TABS)if(t.slice(1).includes(d))return t[0];
  if(d==='binary_sensor'&&['motion','occupancy','presence','door','window','opening','lock'].includes(dc))return'Security';
- if(d==='sensor'&&['power','energy'].includes(dc))return'Power';
- if(d==='sensor'&&['temperature','humidity'].includes(dc))return'Comfort';return'More'}
-function model(){ // entity -> area using entity area or its device's area
- const dev=Object.fromEntries(R.devices.map(d=>[d.id,d])),rooms={};
+ if(d==='sensor'&&['power','energy'].includes(dc))return'Power';if(d==='sensor'&&['temperature','humidity'].includes(dc))return'Comfort';return'More'}
+function model(){const dev=Object.fromEntries(R.devices.map(d=>[d.id,d])),rooms={};
  for(const e of R.entities){if(e.disabled_by||e.hidden_by||e.entity_category||!S[e.entity_id])continue;
-  const a=e.area_id||dev[e.device_id]?.area_id;if(!a||L.hiddenEntities.includes(e.entity_id)&&!editing)continue;
-  (rooms[a]??=[]).push(e.entity_id)}return rooms}
-const nm=id=>S[id]?.attributes?.friendly_name||id,esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function card(id){const s=S[id],d=id.split('.')[0],a=s.attributes,on=['on','open','unlocked','playing','heat','cool','cleaning','home'].includes(s.state),u=a.unit_of_measurement||'';
- let body='';const b=(t,sv,data={})=>`<button data-c="${d}|${sv}|${id}|${esc(JSON.stringify(data))}">${t}</button>`;
+  const a=e.area_id||dev[e.device_id]?.area_id;if(!a||L.hiddenEntities.includes(e.entity_id)&&!editing)continue;(rooms[a]??=[]).push(e.entity_id)}return rooms}
+function floors(rooms){const f=[...R.floors].sort((a,b)=>(a.level??0)-(b.level??0));
+ if(R.areas.some(a=>!a.floor_id&&rooms[a.area_id]))f.push({floor_id:null,name:'Other'});return f.map((x,i)=>({...x,key:x.floor_id||'none',c:FC[i%FC.length]}))}
+function card(id){const s=S[id],d=id.split('.')[0],a=s.attributes,on=['on','open','unlocked','playing','heat','cool','cleaning','home'].includes(s.state);
+ const b=(t,sv,data={})=>`<button data-c="${d}|${sv}|${id}|${esc(JSON.stringify(data))}">${t}</button>`;let body='';
  if(d==='light'&&a.supported_color_modes?.some(m=>m!=='onoff'))body=`<input type=range min=1 max=100 value="${Math.round((a.brightness||0)/2.55)}" data-br="${id}">`;
  else if(d==='cover')body=`<div class=row>${b('Open','open_cover')}${b('Stop','stop_cover')}${b('Close','close_cover')}</div>`+(a.current_position!=null?`<input type=range value="${a.current_position}" data-pos="${id}">`:'');
  else if(d==='climate')body=`<div class=row>${b('−','set_temperature',{temperature:(a.temperature||22)-.5})}<b>${a.temperature??'–'}°</b>${b('+','set_temperature',{temperature:(a.temperature||22)+.5})}<small>now ${a.current_temperature??'–'}°</small></div>`;
  else if(d==='media_player')body=`<div class=row>${b('⏮','media_previous_track')}${b('⏯','media_play_pause')}${b('⏭','media_next_track')}</div>`;
  else if(d==='lock')body=b(s.state==='locked'?'Unlock':'Lock',s.state==='locked'?'unlock':'lock');
  else if(d==='vacuum')body=`<div class=row>${b('Start','start')}${b('Pause','pause')}${b('Dock','return_to_base')}</div>`;
- else if(['switch','input_boolean','fan'].includes(d))body=b('Toggle','toggle');
+ else if(d==='script')body=b('Run','turn_on');
+ else if(['switch','input_boolean','fan','light'].includes(d))body=b('Toggle','toggle');
  const hid=L.hiddenEntities.includes(id);
- return`<div class="card ${on?'on':''} ${hid?'hide':''}"><div class=nm>${esc(nm(id))}</div><div class=st>${esc(s.state)} ${esc(u)}</div>${body}${editing?`<button data-hide-e="${id}">${hid?'Show':'Hide'}</button>`:''}</div>`}
-function home(rooms){const fl=[...R.floors,{floor_id:null,name:'Other rooms'}];let h='';
- for(const f of fl){const as=R.areas.filter(a=>(a.floor_id||null)===f.floor_id&&rooms[a.area_id]&&(editing||!L.hiddenRooms.includes(a.area_id)));if(!as.length)continue;
-  h+=`<h2>${esc(f.name)}</h2><div class=grid>`+as.map(a=>{const ids=rooms[a.area_id],lit=ids.filter(i=>i.startsWith('light.')&&S[i].state==='on').length;
-   return`<div class="room ${L.hiddenRooms.includes(a.area_id)?'hide':''}" data-room="${a.area_id}"><b>${esc(a.name)}</b><small>${ids.length} devices${lit?` · ${lit} lights on`:''}</small>${editing?`<button data-hide-r="${a.area_id}">${L.hiddenRooms.includes(a.area_id)?'Show':'Hide'}</button>`:''}</div>`}).join('')+'</div>'}
- return h||'<p class=empty>No areas with devices yet. Assign devices to areas in Settings → Areas.</p>'}
-function roomView(id,rooms,tab){const ids=rooms[id]||[],by={};ids.forEach(i=>(by[tabOf(i)]??=[]).push(i));
- const names=TABS.map(t=>t[0]).filter(t=>by[t]);tab=by[tab]?tab:names[0];
- return`<div class=tabs>${names.map(t=>`<button class="${t===tab?'act':''}" data-tab="${t}">${t} ${by[t].length}</button>`).join('')}</div><div class=grid>${(by[tab]||[]).map(card).join('')}</div>`}
-let tab=null;
-function render(){if(!R||document.activeElement?.type==='range')return;const rooms=model(),[,r,rid]=location.hash.split('/');
- const room=r==='room'&&R.areas.find(a=>a.area_id===rid);$('#back').hidden=!room;$('#title').textContent=room?room.name:'Roomwise';$('#edit').textContent=editing?'Done':'Edit';
- $('#app').innerHTML=room?roomView(rid,rooms,tab):home(rooms)}
+ return`<div class="card ${on?'on':''} ${hid?'hide':''}"><div class=nm>${esc(nm(id))}</div><div class=st>${esc(s.state)} ${esc(a.unit_of_measurement||'')}</div>${body}${editing?`<button data-hide-e="${id}">${hid?'Show':'Hide'}</button>`:''}</div>`}
+function roomCards(f,rooms){const as=R.areas.filter(a=>(a.floor_id||null)===f.floor_id&&rooms[a.area_id]&&(editing||!L.hiddenRooms.includes(a.area_id)));
+ return as.length?`<div class=grid>`+as.map(a=>{const x=rooms[a.area_id],lit=x.filter(i=>i.startsWith('light.')&&S[i].state==='on').length,h=L.hiddenRooms.includes(a.area_id);
+  return`<div class="room ${h?'hide':''}" style="--c:${f.c}" data-room="${a.area_id}"><b>${esc(a.name)}</b><small>${x.length} devices${lit?` · ${lit} lights on`:''}</small>${editing?`<button data-hide-r="${a.area_id}">${h?'Show':'Hide'}</button>`:''}</div>`}).join('')+'</div>':'<p class=empty>No rooms with devices on this floor.</p>'}
+function summary(rooms){const num=i=>parseFloat(S[i]?.state),pick=(re,fn)=>Object.keys(S).find(i=>i.startsWith('sensor.')&&re.test(i)&&(!fn||fn(S[i])));
+ const wx=ids('weather')[0],lights=ids('light').filter(i=>S[i].state==='on').length,
+ pv=pick(/(pv|solar).*power|power.*(pv|solar)/,s=>!isNaN(s.state)),bat=pick(/(soc|state_of_charge|sigenstor_battery$)/,s=>s.attributes.unit_of_measurement==='%'),
+ mot=ids('binary_sensor').filter(i=>['motion','occupancy'].includes(S[i].attributes.device_class)&&S[i].state==='on').length,ch=[];
+ if(wx)ch.push(`<span class=chip style="--c:#ffb74d">☀️ ${esc(S[wx].state)} ${S[wx].attributes.temperature??''}°</span>`);
+ ch.push(`<a class=chip style="--c:#ffb74d" href="#/lights">💡 ${lights} on</a>`);
+ if(pv){const v=num(pv),u=S[pv].attributes.unit_of_measurement;ch.push(`<span class=chip style="--c:#4caf50">☀ ${u==='W'?(v/1000).toFixed(1):v} kW PV</span>`)}
+ if(bat)ch.push(`<span class=chip style="--c:#00bcd4">🔋 ${Math.round(num(bat))}%</span>`);
+ ch.push(`<span class=chip style="--c:#f44336">🏃 ${mot} active</span>`);return`<div class=chips>${ch.join('')}</div>`}
+function home(rooms){const fl=floors(rooms),wx=ids('weather')[0],sc=ids('script'),w=wx&&S[wx].attributes;
+ return summary(rooms)+(wx?`<h2>Weather</h2><div class=wx><b>${w.temperature??'–'}°</b><span>${esc(S[wx].state)}</span>${w.humidity!=null?`<small>humidity ${w.humidity}%</small>`:''}</div>`:'')+
+ (sc.length?`<h2>Scripts</h2><div class=grid>${sc.map(card).join('')}</div>`:'')+
+ `<h2>Quick functions</h2><div class=grid>${fl.map(f=>`<button class=quick style="--c:${f.c}" data-go="floor/${f.key}">🏢 ${esc(f.name)}</button>`).join('')}<button class=quick style="--c:#4caf50" data-go="lights">💡 Lights on</button><button class=quick style="--c:#f44336" data-c="light|turn_off|all|{}">⏻ All lights off</button></div>`}
+function lightsOn(){const on=ids('light').filter(i=>S[i].state==='on');return`<h2>${on.length} light${on.length===1?'':'s'} currently on</h2>`+(on.length?`<div class=grid>${on.map(card).join('')}</div>`:'<p class=empty>Everything is off.</p>')}
+function roomView(id,rooms,fl){const x=rooms[id]||[],by={};x.forEach(i=>(by[tabOf(i)]??=[]).push(i));
+ const names=TABS.map(t=>t[0]).filter(t=>by[t]),t=by[tab]?tab:names[0],area=R.areas.find(a=>a.area_id===id),same=R.areas.filter(a=>a.floor_id===area.floor_id&&rooms[a.area_id]);
+ return`<div class=strip>${same.map(a=>`<button class="${a.area_id===id?'act':''}" data-room="${a.area_id}">${esc(a.name)}</button>`).join('')}</div>
+ <div class=tabs>${names.map(n=>`<button style="--c:${TC[n]}" class="${n===t?'act':''}" data-tab="${n}">${TI[n]} ${n} ${by[n].length}</button>`).join('')}</div><div class=grid style="margin-top:12px">${(by[t]||[]).map(card).join('')}</div>`}
+function render(){if(!R||document.activeElement?.type==='range')return;const rooms=model(),fl=floors(rooms),[k,v]=location.hash.slice(2).split('/');
+ const area=k==='room'&&R.areas.find(a=>a.area_id===v),fl1=k==='floor'&&fl.find(f=>f.key===v);
+ $('#title').textContent=area?area.name:fl1?fl1.name:k==='lights'?'Lights on':'Roomwise';$('#edit').textContent=editing?'Done':'Edit';
+ $('#badges').innerHTML=`<a class="badge ${!k?'act':''}" style="--c:#f44336" href="#">🏠 Home</a>`+fl.map(f=>`<a class="badge ${fl1&&fl1.key===f.key?'act':''}" style="--c:${f.c}" href="#/floor/${f.key}">${esc(f.name)}</a>`).join('')+`<a class="badge ${k==='lights'?'act':''}" style="--c:#ffb74d" href="#/lights">💡 Lights on</a>`;
+ $('#app').innerHTML=area?roomView(v,rooms,fl):fl1?roomCards(fl1,rooms):k==='lights'?lightsOn():home(rooms)}
+const tick=()=>$('#clock').textContent=new Date().toLocaleString(undefined,{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
 async function poll(){S=Object.fromEntries((await api('states')).map(s=>[s.entity_id,s]));render()}
-document.addEventListener('click',async e=>{const t=e.target.closest('button,.room');if(!t)return;const D=t.dataset;
+document.addEventListener('click',async e=>{const t=e.target.closest('button,.room'),D=t?.dataset;if(!t)return;
  if(D.c){const[d,sv,id,j]=D.c.split('|');return call(d,sv,{entity_id:id,...JSON.parse(j)})}
  if(D.hideR||D.hideE){const k=D.hideR?'hiddenRooms':'hiddenEntities',v=D.hideR||D.hideE;L[k]=L[k].includes(v)?L[k].filter(x=>x!==v):[...L[k],v];await api('layout',{method:'POST',body:JSON.stringify(L)});return render()}
- if(D.tab){tab=D.tab;return render()}if(D.room){tab=null;location.hash='/room/'+D.room;return}
- if(t.id==='back')location.hash='';if(t.id==='edit'){editing=!editing;render()}});
+ if(D.tab){tab=D.tab;return render()}if(D.room){tab=null;location.hash='/room/'+D.room;return}if(D.go)return location.hash='/'+D.go;
+ if(t.id==='edit'){editing=!editing;render()}});
 document.addEventListener('change',e=>{const D=e.target.dataset;
- if(D.br)call('light','turn_on',{entity_id:D.br,brightness_pct:+e.target.value});
- if(D.pos)call('cover','set_cover_position',{entity_id:D.pos,position:+e.target.value})});
-addEventListener('hashchange',render);
+ if(D.br)call('light','turn_on',{entity_id:D.br,brightness_pct:+e.target.value});if(D.pos)call('cover','set_cover_position',{entity_id:D.pos,position:+e.target.value})});
+addEventListener('hashchange',render);tick();setInterval(tick,30000);
 (async()=>{[R,L]=await Promise.all([api('registry'),api('layout')]);await poll();setInterval(poll,3000)})();
 </script></body></html>
