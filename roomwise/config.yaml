@@ -1,5 +1,5 @@
 name: Roomwise
-version: "0.2.0"
+version: "0.3.0"
 slug: roomwise
 description: Auto-built room dashboard from your Home Assistant areas
 arch: [amd64, aarch64, armv7]
